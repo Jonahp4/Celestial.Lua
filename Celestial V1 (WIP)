@@ -39,6 +39,13 @@ getgenv().Movement = {
     CFrameSpeedBind = "V" -- Default keybind for CFrame speed
 }
 
+-- Silent Aim Configuration
+getgenv().SilentAim = {
+    Enabled = false, -- Default Silent Aim toggle state
+    HitChance = 100, -- Default hit chance (100% by default)
+    SilentAimBind = "B" -- Default keybind for Silent Aim
+}
+
 -- Aimbot Variables
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
@@ -172,6 +179,58 @@ LeftGroupBox:AddDropdown('MyDropdown', {
         print('HitPart changed to:', Value)
     end
 })
+
+-- Silent Aim Section
+local SilentAimGroupBox = Tabs.Main:AddRightGroupbox('Silent Aim')
+
+-- Silent Aim Toggle
+SilentAimGroupBox:AddToggle('SilentAimToggle', {
+    Text = 'Enable Silent Aim',
+    Default = false,
+    Tooltip = 'Enable/Disable Silent Aim',
+    Callback = function(Value)
+        getgenv().SilentAim.Enabled = Value
+    end
+})
+
+-- Keybind for Silent Aim
+SilentAimGroupBox:AddLabel('Keybind'):AddKeyPicker('SilentAimKeybind', {
+    Default = 'B', -- Default keybind for Silent Aim
+    SyncToggleState = false,
+    Mode = 'Toggle',
+    Text = 'Silent Aim Keybind',
+    NoUI = false,
+    Callback = function(Value)
+        getgenv().SilentAim.Enabled = not getgenv().SilentAim.Enabled
+    end
+})
+
+-- Slider for Hit Chance (0 to 100)
+SilentAimGroupBox:AddSlider('HitChanceSlider', {
+    Text = 'Hit Chance',
+    Default = 100,
+    Min = 0,
+    Max = 100, -- Hit chance now goes up to 100%
+    Rounding = 0,
+    Compact = false,
+    Callback = function(Value)
+        getgenv().SilentAim.HitChance = Value
+    end
+})
+
+-- Silent Aim Logic
+local function SilentAim()
+    if getgenv().SilentAim.Enabled then
+        local RandomChance = math.random(1, 100)
+        if RandomChance <= getgenv().SilentAim.HitChance then
+            -- Simulate a hit
+            print("Silent Aim: Hit!")
+        else
+            -- Simulate a miss
+            print("Silent Aim: Miss!")
+        end
+    end
+end
 
 -- Movement Tab
 local MovementGroupBox = Tabs.Movement:AddLeftGroupbox('Movement')
