@@ -1,0 +1,239 @@
+-- New example script written by wally
+-- You can suggest changes with a pull request or something
+
+local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+
+local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+
+local Window = Library:CreateWindow({
+    Title = 'Celestial',
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8,
+    MenuFadeTime = 0.2
+})
+
+local Tabs = {
+    Main = Window:AddTab('Main'),
+    Movement = Window:AddTab('Movement'), -- New Movement tab
+    ['UI Settings'] = Window:AddTab('UI Settings'),
+}
+
+-- Camlock Group
+local LeftGroupBox = Tabs.Main:AddLeftGroupbox('Camlock')
+
+-- Aimbot Configuration
+getgenv().Aimbot = {
+    Bind = "C", -- Default keybind for aimbot
+    HitPart = "Head", -- Default hit part
+    Time = 0.05, -- Smoothness
+    Prediction = 0.09 -- Default prediction value
+}
+
+-- Movement Configuration
+getgenv().Movement = {
+    CFrameSpeedEnabled = false, -- Default CFrame speed toggle state
+    CFrameSpeed = 0.1, -- Default CFrame speed
+    CFrameSpeedBind = "V" -- Default keybind for CFrame speed
+}
+
+-- Aimbot Variables
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
+
+local IsToggled = false
+local Target
+local Tween
+local Info
+local Cycle
+
+-- Aimbot Functions
+local function GetTarget()
+    local ClosestPlayer, ClosestDistance = nil, math.huge
+    for _, Plr in pairs(Players:GetPlayers()) do
+        if Plr ~= LocalPlayer then
+            if Plr.Character and Plr.Character[getgenv().Aimbot.HitPart] and Plr.Character:FindFirstChild("HumanoidRootPart") then
+                local ScreenPos, Visible = Camera:WorldToScreenPoint(Plr.Character[getgenv().Aimbot.HitPart].Position)
+                if Visible then
+                    local MousePos = Vector2.new(Mouse.X, Mouse.Y)
+                    ScreenPos = Vector2.new(ScreenPos.X, ScreenPos.Y)
+                    local Difference = (ScreenPos - MousePos).Magnitude
+                    if Difference < ClosestDistance then
+                        ClosestDistance = Difference
+                        ClosestPlayer = Plr
+                    end
+                end
+            end
+        end
+    end
+    Target = ClosestPlayer
+end
+
+local function main()
+    GetTarget()
+    Cycle = RunService.RenderStepped:Connect(function()
+        if Target and Target.Character and Target.Character[getgenv().Aimbot.HitPart] and Target.Character:FindFirstChild("HumanoidRootPart") then
+            if getgenv().Aimbot.Time == 0.01 then
+                -- No smoothing, directly lock onto the target
+                local LookAt = CFrame.lookAt(Camera.CFrame.Position, Target.Character[getgenv().Aimbot.HitPart].Position + Vector3.new(
+                    Target.Character:FindFirstChild("HumanoidRootPart").Velocity.X * getgenv().Aimbot.Prediction,
+                    Target.Character:FindFirstChild("HumanoidRootPart").Velocity.Y * getgenv().Aimbot.Prediction,
+                    Target.Character:FindFirstChild("HumanoidRootPart").Velocity.Z * getgenv().Aimbot.Prediction
+                ))
+                Camera.CFrame = LookAt
+            else
+                -- Use TweenService for smoothing
+                Info = TweenInfo.new(getgenv().Aimbot.Time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, false, 0)
+                local LookAt = CFrame.lookAt(Camera.CFrame.Position, Target.Character[getgenv().Aimbot.HitPart].Position + Vector3.new(
+                    Target.Character:FindFirstChild("HumanoidRootPart").Velocity.X * getgenv().Aimbot.Prediction,
+                    Target.Character:FindFirstChild("HumanoidRootPart").Velocity.Y * getgenv().Aimbot.Prediction,
+                    Target.Character:FindFirstChild("HumanoidRootPart").Velocity.Z * getgenv().Aimbot.Prediction
+                ))
+                Tween = TweenService:Create(Camera, Info, {CFrame = LookAt})
+                Tween:Play()
+            end
+        else
+            Cycle:Disconnect()
+        end
+    end)
+end
+
+-- Toggle Aimbot
+LeftGroupBox:AddToggle('MyToggle', {
+    Text = 'Camlock Toggle',
+    Default = false,
+    Tooltip = 'Enable/Disable Camlock',
+    Callback = function(Value)
+        if Value then
+            main()
+        else
+            if Tween then Tween:Cancel() end
+            if Cycle then Cycle:Disconnect() end
+        end
+    end
+})
+
+-- Keybind for Aimbot
+LeftGroupBox:AddLabel('Keybind'):AddKeyPicker('KeyPicker', {
+    Default = 'C',
+    SyncToggleState = false,
+    Mode = 'Toggle',
+    Text = 'Camlock Keybind',
+    NoUI = false,
+    Callback = function(Value)
+        Toggles.MyToggle:SetValue(not Toggles.MyToggle.Value) -- Toggle on/off
+    end
+})
+
+-- Slider for Smoothness (0.01 to 1)
+LeftGroupBox:AddSlider('MySlider', {
+    Text = 'Smoothness',
+    Default = 0.05,
+    Min = 0.01,
+    Max = 1, -- Smoothness now goes up to 1
+    Rounding = 2,
+    Compact = false,
+    Callback = function(Value)
+        getgenv().Aimbot.Time = Value
+    end
+})
+
+-- Slider for Prediction (0 to 20)
+LeftGroupBox:AddSlider('PredictionSlider', {
+    Text = 'Prediction',
+    Default = 0.09,
+    Min = 0,
+    Max = 20, -- Prediction now goes up to 20
+    Rounding = 2,
+    Compact = false,
+    Callback = function(Value)
+        getgenv().Aimbot.Prediction = Value
+    end
+})
+
+-- Dropdown for Hit Part
+LeftGroupBox:AddDropdown('MyDropdown', {
+    Values = { 'Head', 'UpperTorso', 'LowerTorso', 'HumanoidRootPart' }, -- Added UpperTorso and LowerTorso
+    Default = 1,
+    Multi = false,
+    Text = 'Hit Part',
+    Tooltip = 'Select the part to aim at',
+    Callback = function(Value)
+        getgenv().Aimbot.HitPart = Value -- Update the HitPart dynamically
+        print('HitPart changed to:', Value)
+    end
+})
+
+-- Movement Tab
+local MovementGroupBox = Tabs.Movement:AddLeftGroupbox('Movement')
+
+-- CFrame Speed Toggle
+MovementGroupBox:AddToggle('CFrameSpeedToggle', {
+    Text = 'Enable CFrame Speed',
+    Default = false,
+    Tooltip = 'Enable/Disable CFrame Speed',
+    Callback = function(Value)
+        getgenv().Movement.CFrameSpeedEnabled = Value
+    end
+})
+
+-- Keybind for CFrame Speed
+MovementGroupBox:AddLabel('Keybind'):AddKeyPicker('CFrameSpeedKeybind', {
+    Default = 'V', -- Default keybind for CFrame speed
+    SyncToggleState = false,
+    Mode = 'Toggle',
+    Text = 'CFrame Speed Keybind',
+    NoUI = false,
+    Callback = function(Value)
+        getgenv().Movement.CFrameSpeedEnabled = not getgenv().Movement.CFrameSpeedEnabled
+    end
+})
+
+-- Slider for CFrame Speed (0.05 to 2)
+MovementGroupBox:AddSlider('CFrameSpeedSlider', {
+    Text = 'CFrame Speed',
+    Default = 0.1,
+    Min = 0.05,
+    Max = 2, -- CFrame speed now goes up to 2
+    Rounding = 2,
+    Compact = false,
+    Callback = function(Value)
+        getgenv().Movement.CFrameSpeed = Value
+    end
+})
+
+-- CFrame Speed Logic
+game:GetService("RunService").Heartbeat:Connect(function()
+    if getgenv().Movement.CFrameSpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame =
+            LocalPlayer.Character.HumanoidRootPart.CFrame +
+            LocalPlayer.Character.Humanoid.MoveDirection * getgenv().Movement.CFrameSpeed
+    end
+end)
+
+-- UI Settings
+local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+MenuGroup:AddButton('Unload', function() Library:Unload() end)
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+-- Addons
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+ThemeManager:SetFolder('MyScriptHub')
+SaveManager:SetFolder('MyScriptHub/specific-game')
+SaveManager:BuildConfigSection(Tabs['UI Settings'])
+ThemeManager:ApplyToTab(Tabs['UI Settings'])
+SaveManager:LoadAutoloadConfig()
